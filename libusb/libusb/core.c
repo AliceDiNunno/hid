@@ -312,7 +312,8 @@ if (cfg != desired)
  * - libusb is able to send a packet of zero length to an endpoint simply by
  * submitting a transfer of zero length.
  * - The \ref libusb_transfer_flags::LIBUSB_TRANSFER_ADD_ZERO_PACKET
- * "LIBUSB_TRANSFER_ADD_ZERO_PACKET" flag is currently only supported on Linux.
+ * "LIBUSB_TRANSFER_ADD_ZERO_PACKET" flag is currently supported on Linux,
+ * Darwin and Windows (WinUSB).
  */
 
 /**
@@ -579,7 +580,9 @@ libusb_free_device_list(list, 1);
  *
  * The libusb_get_device_list() function can be used to obtain a list of
  * devices currently connected to the system. This is known as device
- * discovery.
+ * discovery. Devices can also be discovered with the hotplug mechanism,
+ * whereby a callback function registered with libusb_hotplug_register_callback()
+ * will be called when a device of interest is connected or disconnected.
  *
  * Just because you have a reference to a device does not mean it is
  * necessarily usable. The device may have been unplugged, you may not have
@@ -610,7 +613,7 @@ libusb_free_device_list(list, 1);
  *
  * With the above information in mind, the process of opening a device can
  * be viewed as follows:
- * -# Discover devices using libusb_get_device_list().
+ * -# Discover devices using libusb_get_device_list() or libusb_hotplug_register_callback().
  * -# Choose the device that you want to operate, and call libusb_open().
  * -# Unref all devices in the discovered device list.
  * -# Free the discovered device list.
@@ -2163,6 +2166,9 @@ void API_EXPORTED libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb,
  * Some options require one or more arguments to be provided. Consult each
  * option's documentation for specific requirements.
  *
+ * If the context ctx is NULL, the option will be added to a list of default
+ * options that will be applied to all subsequently created contexts.
+ *
  * Since version 1.0.22, \ref LIBUSB_API_VERSION >= 0x01000106
  *
  * \param ctx context on which to operate
@@ -2313,12 +2319,8 @@ int API_EXPORTED libusb_init(libusb_context **ctx)
 	list_init(&_ctx->usb_devs);
 	list_init(&_ctx->open_devs);
 
-	/* default context should be initialized before calling usbi_dbg */
-	if (!ctx) {
-		usbi_default_context = _ctx;
-		default_context_refcnt = 1;
-		usbi_dbg(usbi_default_context, "created default context");
-
+	/* apply options to new contexts (also default context being created) */
+	if (ctx || !usbi_default_context) {
 		for (enum libusb_option option = 0 ; option < LIBUSB_OPTION_MAX ; option++) {
 			if (LIBUSB_OPTION_LOG_LEVEL == option || !default_context_options[option].is_set) {
 				continue;
@@ -2327,6 +2329,13 @@ int API_EXPORTED libusb_init(libusb_context **ctx)
 			if (LIBUSB_SUCCESS != r)
 				goto err_free_ctx;
 		}
+	}
+
+	/* default context must be initialized before calling usbi_dbg */
+	if (!ctx) {
+		usbi_default_context = _ctx;
+		default_context_refcnt = 1;
+		usbi_dbg(usbi_default_context, "created default context");
 	}
 
 	usbi_dbg(_ctx, "libusb v%u.%u.%u.%u%s", libusb_version_internal.major, libusb_version_internal.minor,
@@ -2342,13 +2351,13 @@ int API_EXPORTED libusb_init(libusb_context **ctx)
 	list_add(&_ctx->list, &active_contexts_list);
 	usbi_mutex_static_unlock(&active_contexts_lock);
 
+	usbi_hotplug_init(_ctx);
+
 	if (usbi_backend.init) {
 		r = usbi_backend.init(_ctx);
 		if (r)
 			goto err_io_exit;
 	}
-
-	usbi_hotplug_init(_ctx);
 
 	if (ctx)
 		*ctx = _ctx;

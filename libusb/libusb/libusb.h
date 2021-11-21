@@ -31,8 +31,11 @@
 #define inline __inline
 #endif
 /* ssize_t is also not available */
+#ifndef _SSIZE_T_DEFINED
+#define _SSIZE_T_DEFINED
 #include <basetsd.h>
 typedef SSIZE_T ssize_t;
+#endif /* _SSIZE_T_DEFINED */
 #endif /* _MSC_VER */
 
 #include <limits.h>
@@ -979,8 +982,9 @@ struct libusb_version {
  * Sessions are created by libusb_init() and destroyed through libusb_exit().
  * If your application is guaranteed to only ever include a single libusb
  * user (i.e. you), you do not have to worry about contexts: pass NULL in
- * every function call where a context is required. The default context
- * will be used.
+ * every function call where a context is required, and the default context
+ * will be used. Note that libusb_set_option(NULL, ...) is special, and adds
+ * an option to a list of default options for new contexts.
  *
  * For more information, see \ref libusb_contexts.
  */
@@ -989,7 +993,7 @@ typedef struct libusb_context libusb_context;
 /** \ingroup libusb_dev
  * Structure representing a USB device detected on the system. This is an
  * opaque type for which you are only ever provided with a pointer, usually
- * originating from libusb_get_device_list().
+ * originating from libusb_get_device_list() or libusb_hotplug_register_callback().
  *
  * Certain operations can be performed on a device, but in order to do any
  * I/O you will have to first obtain a device handle using libusb_open().

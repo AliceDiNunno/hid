@@ -528,21 +528,17 @@ static int windows_assign_endpoints(struct libusb_device_handle *dev_handle, uin
 
 	if (if_desc->bNumEndpoints == 0) {
 		usbi_dbg(HANDLE_CTX(dev_handle), "no endpoints found for interface %u", iface);
-		libusb_free_config_descriptor(conf_desc);
-		priv->usb_interface[iface].current_altsetting = altsetting;
-		return LIBUSB_SUCCESS;
-	}
-
-	priv->usb_interface[iface].endpoint = malloc(if_desc->bNumEndpoints);
-	if (priv->usb_interface[iface].endpoint == NULL) {
-		libusb_free_config_descriptor(conf_desc);
-		return LIBUSB_ERROR_NO_MEM;
-	}
-
-	priv->usb_interface[iface].nb_endpoints = if_desc->bNumEndpoints;
-	for (i = 0; i < if_desc->bNumEndpoints; i++) {
-		priv->usb_interface[iface].endpoint[i] = if_desc->endpoint[i].bEndpointAddress;
-		usbi_dbg(HANDLE_CTX(dev_handle), "(re)assigned endpoint %02X to interface %u", priv->usb_interface[iface].endpoint[i], iface);
+	} else {
+		priv->usb_interface[iface].endpoint = malloc(if_desc->bNumEndpoints);
+		if (priv->usb_interface[iface].endpoint == NULL) {
+			libusb_free_config_descriptor(conf_desc);
+			return LIBUSB_ERROR_NO_MEM;
+		}
+		priv->usb_interface[iface].nb_endpoints = if_desc->bNumEndpoints;
+		for (i = 0; i < if_desc->bNumEndpoints; i++) {
+			priv->usb_interface[iface].endpoint[i] = if_desc->endpoint[i].bEndpointAddress;
+			usbi_dbg(HANDLE_CTX(dev_handle), "(re)assigned endpoint %02X to interface %u", priv->usb_interface[iface].endpoint[i], iface);
+		}
 	}
 	libusb_free_config_descriptor(conf_desc);
 
@@ -1619,6 +1615,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
 				if (key == INVALID_HANDLE_VALUE)
 					break;
 				// Look for both DeviceInterfaceGUIDs *and* DeviceInterfaceGUID, in that order
+				// If multiple GUIDs just process the first and ignore the others
 				size = sizeof(guid_string);
 				s = pRegQueryValueExA(key, "DeviceInterfaceGUIDs", NULL, &reg_type,
 					(LPBYTE)guid_string, &size);
@@ -1628,7 +1625,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
 				pRegCloseKey(key);
 				if (s == ERROR_FILE_NOT_FOUND) {
 					break; /* no DeviceInterfaceGUID registered */
-				} else if (s != ERROR_SUCCESS) {
+				} else if (s != ERROR_SUCCESS && s != ERROR_MORE_DATA) {
 					usbi_warn(ctx, "unexpected error from pRegQueryValueExA for '%s'", dev_id);
 					break;
 				}
@@ -2794,6 +2791,7 @@ static int winusbx_submit_control_transfer(int sub_api, struct usbi_transfer *it
 
 	usbi_dbg(ITRANSFER_CTX(itransfer), "will use interface %d", current_interface);
 
+	transfer_priv->interface_number = (uint8_t)current_interface;
 	winusb_handle = handle_priv->interface_handle[current_interface].api_handle;
 	set_transfer_priv_handle(itransfer, handle_priv->interface_handle[current_interface].dev_handle);
 	overlapped = get_transfer_priv_overlapped(itransfer);
@@ -2815,8 +2813,6 @@ static int winusbx_submit_control_transfer(int sub_api, struct usbi_transfer *it
 			}
 		}
 	}
-
-	transfer_priv->interface_number = (uint8_t)current_interface;
 
 	return LIBUSB_SUCCESS;
 }
@@ -2896,6 +2892,7 @@ static int winusbx_submit_iso_transfer(int sub_api, struct usbi_transfer *itrans
 
 	usbi_dbg(TRANSFER_CTX(transfer), "matched endpoint %02X with interface %d", transfer->endpoint, current_interface);
 
+	transfer_priv->interface_number = (uint8_t)current_interface;
 	winusb_handle = handle_priv->interface_handle[current_interface].api_handle;
 	set_transfer_priv_handle(itransfer, handle_priv->interface_handle[current_interface].dev_handle);
 	overlapped = get_transfer_priv_overlapped(itransfer);
@@ -2939,8 +2936,6 @@ static int winusbx_submit_iso_transfer(int sub_api, struct usbi_transfer *itrans
 			usbi_err(TRANSFER_CTX(transfer), "IsoReadPipe/IsoWritePipe failed: %s", windows_error_str(0));
 			return LIBUSB_ERROR_IO;
 		}
-
-		transfer_priv->interface_number = (uint8_t)current_interface;
 
 		return LIBUSB_SUCCESS;
 	} else if (sub_api == SUB_API_WINUSB) {
@@ -3056,8 +3051,6 @@ static int winusbx_submit_iso_transfer(int sub_api, struct usbi_transfer *itrans
 
 		transfer_priv->isoch_buffer_handle = buffer_handle;
 
-		transfer_priv->interface_number = (uint8_t)current_interface;
-
 		return LIBUSB_SUCCESS;
 	} else {
 		PRINT_UNSUPPORTED_API(winusbx_submit_iso_transfer);
@@ -3086,6 +3079,7 @@ static int winusbx_submit_bulk_transfer(int sub_api, struct usbi_transfer *itran
 
 	usbi_dbg(TRANSFER_CTX(transfer), "matched endpoint %02X with interface %d", transfer->endpoint, current_interface);
 
+	transfer_priv->interface_number = (uint8_t)current_interface;
 	winusb_handle = handle_priv->interface_handle[current_interface].api_handle;
 	set_transfer_priv_handle(itransfer, handle_priv->interface_handle[current_interface].dev_handle);
 	overlapped = get_transfer_priv_overlapped(itransfer);
@@ -3119,8 +3113,6 @@ static int winusbx_submit_bulk_transfer(int sub_api, struct usbi_transfer *itran
 		usbi_err(TRANSFER_CTX(transfer), "ReadPipe/WritePipe failed: %s", windows_error_str(0));
 		return LIBUSB_ERROR_IO;
 	}
-
-	transfer_priv->interface_number = (uint8_t)current_interface;
 
 	return LIBUSB_SUCCESS;
 }
@@ -3995,6 +3987,7 @@ static int hid_submit_control_transfer(int sub_api, struct usbi_transfer *itrans
 
 	usbi_dbg(ITRANSFER_CTX(itransfer), "will use interface %d", current_interface);
 
+	transfer_priv->interface_number = (uint8_t)current_interface;
 	hid_handle = handle_priv->interface_handle[current_interface].api_handle;
 	set_transfer_priv_handle(itransfer, hid_handle);
 	overlapped = get_transfer_priv_overlapped(itransfer);
@@ -4056,8 +4049,6 @@ static int hid_submit_control_transfer(int sub_api, struct usbi_transfer *itrans
 		r = LIBUSB_SUCCESS;
 	}
 
-	transfer_priv->interface_number = (uint8_t)current_interface;
-
 	return LIBUSB_SUCCESS;
 }
 
@@ -4090,6 +4081,7 @@ static int hid_submit_bulk_transfer(int sub_api, struct usbi_transfer *itransfer
 
 	usbi_dbg(TRANSFER_CTX(transfer), "matched endpoint %02X with interface %d", transfer->endpoint, current_interface);
 
+	transfer_priv->interface_number = (uint8_t)current_interface;
 	hid_handle = handle_priv->interface_handle[current_interface].api_handle;
 	set_transfer_priv_handle(itransfer, hid_handle);
 	overlapped = get_transfer_priv_overlapped(itransfer);
@@ -4129,8 +4121,6 @@ static int hid_submit_bulk_transfer(int sub_api, struct usbi_transfer *itransfer
 		safe_free(transfer_priv->hid_buffer);
 		return LIBUSB_ERROR_IO;
 	}
-
-	transfer_priv->interface_number = (uint8_t)current_interface;
 
 	return LIBUSB_SUCCESS;
 }
@@ -4205,8 +4195,6 @@ static enum libusb_transfer_status hid_copy_transfer_data(int sub_api, struct us
 				}
 
 				if (transfer_priv->hid_buffer[0] == 0) {
-					// Discard the 1 byte report ID prefix
-					length--;
 					memcpy(transfer_priv->hid_dest, transfer_priv->hid_buffer + 1, length);
 				} else {
 					memcpy(transfer_priv->hid_dest, transfer_priv->hid_buffer, length);

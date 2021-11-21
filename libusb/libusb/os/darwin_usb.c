@@ -54,6 +54,9 @@
 
 static int init_count = 0;
 
+/* Both kIOMasterPortDefault or kIOMainPortDefault are synonyms for 0. */
+static const mach_port_t darwin_default_master_port = 0;
+
 /* async event thread */
 static pthread_mutex_t libusb_darwin_at_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  libusb_darwin_at_cond = PTHREAD_COND_INITIALIZER;
@@ -107,6 +110,9 @@ static const char *darwin_error_str (IOReturn result) {
   case kIOReturnExclusiveAccess:
     return "another process has device opened for exclusive access";
   case kIOUSBPipeStalled:
+#if defined(kUSBHostReturnPipeStalled)
+  case kUSBHostReturnPipeStalled:
+#endif
     return "pipe is stalled";
   case kIOReturnError:
     return "could not establish a connection to the Darwin kernel";
@@ -146,6 +152,9 @@ static enum libusb_error darwin_to_libusb (IOReturn result) {
   case kIOReturnExclusiveAccess:
     return LIBUSB_ERROR_ACCESS;
   case kIOUSBPipeStalled:
+#if defined(kUSBHostReturnPipeStalled)
+  case kUSBHostReturnPipeStalled:
+#endif
     return LIBUSB_ERROR_PIPE;
   case kIOReturnBadArgument:
     return LIBUSB_ERROR_INVALID_PARAM;
@@ -248,7 +257,7 @@ static IOReturn usb_setup_device_iterator (io_iterator_t *deviceIterator, UInt32
       CFRelease (locationCF);
   }
 
-  return IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, deviceIterator);
+  return IOServiceGetMatchingServices(darwin_default_master_port, matchingDict, deviceIterator);
 }
 
 /* Returns 1 on success, 0 on failure. */
@@ -436,7 +445,7 @@ static void darwin_hotplug_poll (void)
   /* since a kernel thread may notify the IOIterators used for
    * hotplug notification we can't just clear the iterators.
    * instead just wait until all IOService providers are quiet */
-  (void) IOKitWaitQuiet (kIOMasterPortDefault, &timeout);
+  (void) IOKitWaitQuiet (darwin_default_master_port, &timeout);
 }
 
 static void darwin_clear_iterator (io_iterator_t iter) {
@@ -496,7 +505,7 @@ static void *darwin_event_thread_main (void *arg0) {
   CFRunLoopAddSource(runloop, libusb_shutdown_cfsource, kCFRunLoopDefaultMode);
 
   /* add the notification port to the run loop */
-  libusb_notification_port     = IONotificationPortCreate (kIOMasterPortDefault);
+  libusb_notification_port     = IONotificationPortCreate (darwin_default_master_port);
   libusb_notification_cfsource = IONotificationPortGetRunLoopSource (libusb_notification_port);
   CFRunLoopAddSource(runloop, libusb_notification_cfsource, kCFRunLoopDefaultMode);
 
@@ -1245,7 +1254,7 @@ static int darwin_open (struct libusb_device_handle *dev_handle) {
 
     CFRetain (libusb_darwin_acfl);
 
-    /* add the cfSource to the aync run loop */
+    /* add the cfSource to the async run loop */
     CFRunLoopAddSource(libusb_darwin_acfl, priv->cfSource, kCFRunLoopCommonModes);
   }
 
@@ -1561,6 +1570,7 @@ static int darwin_release_interface(struct libusb_device_handle *dev_handle, uin
   if (cInterface->cfSource) {
     CFRunLoopRemoveSource (libusb_darwin_acfl, cInterface->cfSource, kCFRunLoopDefaultMode);
     CFRelease (cInterface->cfSource);
+    cInterface->cfSource = NULL;
   }
 
   kresult = (*(cInterface->interface))->USBInterfaceClose(cInterface->interface);
@@ -1603,12 +1613,14 @@ static int darwin_set_interface_altsetting(struct libusb_device_handle *dev_hand
   else
     usbi_warn (HANDLE_CTX (dev_handle), "SetAlternateInterface: %s", darwin_error_str(kresult));
 
-  if (kresult != kIOUSBPipeStalled)
+  ret = darwin_to_libusb(kresult);
+  if (ret != LIBUSB_ERROR_PIPE) {
     return darwin_to_libusb (kresult);
+  }
 
   /* If a device only supports a default setting for the specified interface, then a STALL
      (kIOUSBPipeStalled) may be returned. Ref: USB 2.0 specs 9.4.10.
-     Mimick the behaviour in e.g. the Linux kernel: in such case, reset all endpoints
+     Mimic the behaviour in e.g. the Linux kernel: in such case, reset all endpoints
      of the interface (as would have been done per 9.1.1.5) and return success. */
 
   /* For some reason we need to reclaim the interface after the pipe error */
@@ -1746,7 +1758,9 @@ static int darwin_reenumerate_device (struct libusb_device_handle *dev_handle, b
   /* if we need to release capture */
   if (HAS_CAPTURE_DEVICE()) {
     if (capture) {
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
       options |= kUSBReEnumerateCaptureDeviceMask;
+#endif
     }
   } else {
     capture = false;
@@ -1831,7 +1845,7 @@ static io_service_t usb_find_interface_matching_location (const io_name_t class_
   CFRelease (locationCF);
   CFRelease (propertyMatchDict);
 
-  return IOServiceGetMatchingService (kIOMasterPortDefault, matchingDict);
+  return IOServiceGetMatchingService (darwin_default_master_port, matchingDict);
 }
 
 static int darwin_kernel_driver_active(struct libusb_device_handle *dev_handle, uint8_t interface) {
