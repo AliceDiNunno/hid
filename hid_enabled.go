@@ -19,6 +19,7 @@ package hid
 #cgo windows CFLAGS: -DOS_WINDOWS
 #cgo windows LDFLAGS: -lsetupapi
 
+//go:generate sh -c "go update --init --recursive"
 //go:generate sh -c "cd libusb && ./bootstrap.sh"
 //go:generate sh -c "cd libusb && ./configure"
 //go:generate sh -c "cd hidapi && ./bootstrap"
