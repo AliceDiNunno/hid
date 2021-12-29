@@ -4,6 +4,7 @@
 // This file is released under the 3-clause BSD license. Note however that Linux
 // support depends on libusb, released under LGNU GPL 2.1 or later.
 
+//go:build (linux && cgo) || (darwin && !ios && cgo) || (windows && cgo)
 // +build linux,cgo darwin,!ios,cgo windows,cgo
 
 package hid
@@ -11,33 +12,38 @@ package hid
 /*
 #cgo CFLAGS: -I./hidapi/hidapi
 
-#cgo linux CFLAGS: -I./libusb/libusb -DDEFAULT_VISIBILITY="" -DOS_LINUX -D_GNU_SOURCE -DPOLL_NFDS_TYPE=int
-#cgo linux,!android LDFLAGS: -lrt
-#cgo darwin CFLAGS: -DOS_DARWIN
-#cgo darwin LDFLAGS: -framework CoreFoundation -framework IOKit
+#cgo linux CFLAGS: -I./libusb -I./libusb/libusb -DOS_LINUX
+#cgo linux,!android LDFLAGS: -lrt -ludev
+#cgo darwin CFLAGS: -DOS_DARWIN -Wno-deprecated
+#cgo darwin LDFLAGS: -framework AppKit -framework IOKit
 #cgo windows CFLAGS: -DOS_WINDOWS
 #cgo windows LDFLAGS: -lsetupapi
 
+//go:generate sh -c "cd libusb && ./bootstrap.sh"
+//go:generate sh -c "cd libusb && ./configure"
+//go:generate sh -c "cd hidapi && ./bootstrap"
+//go:generate sh -c "cd hidapi && ./configure"
+
 #ifdef OS_LINUX
-	#include <poll.h>
-	#include "os/threads_posix.c"
-	#include "os/poll_posix.c"
+        #include "os/events_posix.c"
+        #include "os/threads_posix.c"
 
-	#include "os/linux_usbfs.c"
-	#include "os/linux_netlink.c"
+        #include "os/linux_udev.c"
+        #include "os/linux_usbfs.c"
+        #include "os/linux_netlink.c"
 
-	#include "core.c"
-	#include "descriptor.c"
-	#include "hotplug.c"
-	#include "io.c"
-	#include "strerror.c"
-	#include "sync.c"
+        #include "core.c"
+        #include "io.c"
+        #include "descriptor.c"
+        #include "hotplug.c"
+        #include "strerror.c"
+        #include "sync.c"
 
-	#include "hidapi/libusb/hid.c"
+        #include "hidapi/libusb/hid.c"
 #elif OS_DARWIN
-	#include "hidapi/mac/hid.c"
+        #include "hidapi/mac/hid.c"
 #elif OS_WINDOWS
-	#include "hidapi/windows/hid.c"
+        #include "hidapi/windows/hid.c"
 #endif
 */
 import "C"
