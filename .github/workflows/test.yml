@@ -11,17 +11,24 @@ jobs:
     steps:
     -
       name: Checkout source code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     -
       name: Set up Go 1.17
       uses: actions/setup-go@v1
       id: go
       with:
         go-version: 1.17
-    -
+    - 
+      name: Setup msys2 / gcc compiler
+      uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+    - 
       name: Test (without race condition detector - not available on Windows)
       env: 
-        PATH: C:\msys64\mingw64\bin\;%PATH% #add gcc to %path%
+        PATH: D:\a\_temp\msys64\mingw64\bin;%PATH% #add gcc to %path%
       run: go test -v ./...
 
   test_ubuntu_versions:
