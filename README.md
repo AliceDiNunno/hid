@@ -1,28 +1,30 @@
-[![Travis][travisimg]][travisurl]
-[![AppVeyor][appveyorimg]][appveyorurl]
-[![GoDoc][docimg]][docurl]
+![Build Status](https://github.com/dh1tw/hid/workflows/Cross%20Platform%20Tests/badge.svg?branch=master)
+[![GoDoc](https://godoc.org/github.com/dh1tw/hid?status.svg)](https://godoc.org/github.com/dh1tw/hid)
 
-[travisimg]:   https://travis-ci.org/karalabe/hid.svg?branch=master
-[travisurl]:   https://travis-ci.org/karalabe/hid
-[appveyorimg]: https://ci.appveyor.com/api/projects/status/plroy54odykb0ch3/branch/master?svg=true
-[appveyorurl]: https://ci.appveyor.com/project/karalabe/hid
-[docimg]:      https://godoc.org/github.com/karalabe/hid?status.svg
-[docurl]:      https://godoc.org/github.com/karalabe/hid
+This package has been forked from [karalabe/hid](https://github.com/karalabe/hid) where the development
+has unfortunately stopped in 2019. The package came with vendored versions of 
+[`libusb`](https://github.com/libusb/libusb) and [`hidapi`](https://github.com/libusb/hidapi) which
+haven't been updated in more than 5 years. I updated and simplified the cgo build commands,
+so that the package builds again on Linux, Windows and MacOS. As part of the simplification, I removed
+the vendored version of `libusb`. It's only needed for Linux, and all major distros provide more
+recent versions of `libusb`. You just have to make sure that `libusb-1.0-0-dev` is installed on your 
+Linux system. On MacOS and Windows `libusb` is not needed. Both OS have direct `hid` APIs which are
+accessed by `hidapi`.
+
+The vendored version of `hidapi` is `hidapi-0.11.0-7-gaf6c601`.
 
 # Gopher Interface Devices (USB HID)
 
-The `hid` package is a cross platform library for accessing and communicating with USB Human Interface
-Devices (HID). It is an alternative package to [`gousb`](https://github.com/karalabe/gousb) for use
-cases where devices support this ligher mode of operation (e.g. input devices, hardware crypto wallets).
-
-The package wraps [`hidapi`](https://github.com/signal11/hidapi) for accessing OS specific USB HID APIs
-directly instead of using low level USB constructs, which might have permission issues on some platforms.
-On Linux the package also wraps [`libusb`](https://github.com/libusb/libusb). Both of these dependencies
-are vendored directly into the repository and wrapped using CGO, making the `hid` package self-contained
-and go-gettable.
-
 Supported platforms at the moment are Linux, macOS and Windows (exclude constraints are also specified
 for Android and iOS to allow smoother vendoring into cross platform projects).
+
+# Linux support
+
+Make sure you have `libusb-1.0-0-dev` installed on your system.
+
+```
+$ sudo apt install libusb-1.0-0-dev
+```
 
 ## Cross-compiling
 

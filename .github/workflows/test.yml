@@ -1,4 +1,4 @@
-name: Cross Platform testing
+name: Cross Platform Tests
 
 on: [push, pull_request]
 
