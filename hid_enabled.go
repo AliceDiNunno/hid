@@ -12,38 +12,21 @@ package hid
 /*
 #cgo CFLAGS: -I./hidapi/hidapi
 
-#cgo linux CFLAGS: -I./libusb -I./libusb/libusb -DOS_LINUX
-#cgo linux,!android LDFLAGS: -lrt -ludev
+#cgo linux CFLAGS: -DOS_LINUX
+#cgo linux pkg-config: libusb-1.0
+
 #cgo darwin CFLAGS: -DOS_DARWIN -Wno-deprecated
 #cgo darwin LDFLAGS: -framework AppKit -framework IOKit
+
 #cgo windows CFLAGS: -DOS_WINDOWS
 #cgo windows LDFLAGS: -lsetupapi
 
-//go:generate sh -c "cd libusb && ./bootstrap.sh"
-//go:generate sh -c "cd libusb && ./configure"
-//go:generate sh -c "cd hidapi && ./bootstrap"
-//go:generate sh -c "cd hidapi && ./configure"
-
 #ifdef OS_LINUX
-        #include "os/events_posix.c"
-        #include "os/threads_posix.c"
-
-        #include "os/linux_udev.c"
-        #include "os/linux_usbfs.c"
-        #include "os/linux_netlink.c"
-
-        #include "core.c"
-        #include "io.c"
-        #include "descriptor.c"
-        #include "hotplug.c"
-        #include "strerror.c"
-        #include "sync.c"
-
-        #include "hidapi/libusb/hid.c"
+    #include "hidapi/libusb/hid.c"
 #elif OS_DARWIN
-        #include "hidapi/mac/hid.c"
+    #include "hidapi/mac/hid.c"
 #elif OS_WINDOWS
-        #include "hidapi/windows/hid.c"
+    #include "hidapi/windows/hid.c"
 #endif
 */
 import "C"

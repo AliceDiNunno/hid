@@ -39,8 +39,9 @@ jobs:
     -
       name: Checkout source code
       uses: actions/checkout@v1
-    - name: Install dependencies 
-      run: sudo apt-get install -y libudev-dev libusb-1.0-0 libusb-1.0-0-dev
+    - 
+      name: Install dependencies 
+      run: sudo apt-get install -y libusb-1.0-0-dev
     -
       name: Generate & configure libusb & hidapi
       run: go generate
@@ -63,8 +64,9 @@ jobs:
     -
       name: Checkout source code
       uses: actions/checkout@v1
-    - name: Install dependencies 
-      run: sudo apt-get install -y libudev-dev libusb-1.0-0 libusb-1.0-0-dev
+    - 
+      name: Install dependencies 
+      run: sudo apt-get install -y libusb-1.0-0-dev
     -
       name: Generate & configure libusb & hidapi
       run: go generate
@@ -84,8 +86,9 @@ jobs:
     -
       name: Checkout source code
       uses: actions/checkout@v1
-    - name: Install dependencies 
-      run: sudo apt-get install -y libudev-dev libusb-1.0-0 libusb-1.0-0-dev
+    - 
+      name: Install dependencies 
+      run: sudo apt-get install -y libusb-1.0-0-dev
     -
       name: Generate & configure libusb & hidapi
       run: go generate
@@ -116,7 +119,8 @@ jobs:
     -
       name: Checkout source code
       uses: actions/checkout@v1
-    - name: Install automake
+    - 
+      name: Install automake
       run: brew install automake
     -
       name: Generate & configure libusb & hidapi
