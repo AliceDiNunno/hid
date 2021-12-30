@@ -18,7 +18,7 @@ package hid
 #cgo darwin CFLAGS: -DOS_DARWIN -Wno-deprecated
 #cgo darwin LDFLAGS: -framework AppKit -framework IOKit
 
-#cgo windows CFLAGS: -DOS_WINDOWS
+#cgo windows CFLAGS: -DOS_WINDOWS -Wno-unknown-pragmas
 #cgo windows LDFLAGS: -lsetupapi
 
 #ifdef OS_LINUX
