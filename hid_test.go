@@ -4,13 +4,11 @@
 // This file is released under the 3-clause BSD license. Note however that Linux
 // support depends on libusb, released under GNU LGPL 2.1 or later.
 
-package hid_test
+package hid
 
 import (
 	"sync"
 	"testing"
-
-	"github.com/dh1tw/hid"
 )
 
 // Tests that device enumeration can be called concurrently from multiple threads.
@@ -22,7 +20,7 @@ func TestThreadedEnumerate(t *testing.T) {
 		go func(index int) {
 			defer pend.Done()
 			for j := 0; j < 512; j++ {
-				hid.Enumerate(uint16(index), 0)
+				Enumerate(uint16(index), 0)
 			}
 		}(i)
 	}
