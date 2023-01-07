@@ -1,3 +1,3 @@
-module github.com/dh1tw/hid
+module github.com/AliceDiNunno/hid
 
 go 1.11
